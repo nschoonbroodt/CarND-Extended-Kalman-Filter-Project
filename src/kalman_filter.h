@@ -63,7 +63,12 @@ public:
    * @param z The measurement at k+1
    */
   void UpdateEKF(const Eigen::VectorXd &z);
-
+  
+private:
+  /**
+   * Computations in common between regular and extended Kalman Filter
+   */
+   void UpdateStep(const Eigen::VectorXd &y);
 };
 
 #endif /* KALMAN_FILTER_H_ */
