@@ -3,83 +3,37 @@ Self-Driving Car Engineer Nanodegree Program
 
 ---
 
-## Dependencies
+## Technical choices
+There were few technical choices to be made in this project as the skeleton of code was already large, and the EKF was well described in the class lesson. But there were still a few decisions to be made.
 
-* cmake >= 3.5
- * All OSes: [click here for installation instructions](https://cmake.org/install/)
-* make >= 4.1
-  * Linux: make is installed by default on most Linux distros
-  * Mac: [install Xcode command line tools to get make](https://developer.apple.com/xcode/features/)
-  * Windows: [Click here for installation instructions](http://gnuwin32.sourceforge.net/packages/make.htm)
-* gcc/g++ >= 5.4
-  * Linux: gcc / g++ is installed by default on most Linux distros
-  * Mac: same deal as make - [install Xcode command line tools]((https://developer.apple.com/xcode/features/)
-  * Windows: recommend using [MinGW](http://www.mingw.org/)
+### Filter initialization
+To initialize the filter, there are two distincts cases. 
 
-## Basic Build Instructions
+The first one is when we get the first data from the lidar. The lidar gives us a good position measurement, but no speed data. 
+In this case, I set the position parts of the initial state to the measured value, with a small value for the position elements of the state covariance matrix, and the initial speed to 0 with a large value for the covariance of the speed, indicating that this speed of 0 is not good.
 
-1. Clone this repo.
-2. Make a build directory: `mkdir build && cd build`
-3. Compile: `cmake .. && make` 
-   * On windows, you may need to run: `cmake .. -G "Unix Makefiles" && make`
-4. Run it: `./ExtendedKF path/to/input.txt path/to/output.txt`. You can find
-   some sample inputs in 'data/'.
-    - eg. `./ExtendedKF ../data/obj_pose-laser-radar-synthetic-input.txt`
+The second case is when we get the first data from the radar. In this case, there is a position available (that I convert from polar to cartesian) and a partial speed measurement, as we only get information about the radial speed. Even if this speed measurement is partial, it's a better estimation of the speed than just putting a zero speed in the state, so I use this value (again, transformed from polar to cartesian). For the state covariance matrix, I set a covariance small (but not as small as for the lidar) for the position part, and a larger (but much smaller than the lidar one) coefficient for the speed covariance.
 
-## Editor Settings
+### Avoid prediction step if small dt
+If the time between two measurements is small (defined as less than 1ms in my code. For reference, the dt in the given data is always 50ms), I skip the prediction step and keep the previous state.
 
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
+If we had synchronized data from the lidar and radar (instead of offseted), this would lead to the following sequence: `predict(), update(lidar), update(radar)` instead of `predict(), update(lidar), update(radar)`. This avoid some unecessary computations, as the second predict would be with a dt -> 0, so not propagation very far.
 
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
+### Minor optimization
+I also used a common function in the `KalmanFilter::Update()` and `KalmanFilter::UpdateEKF`, as the equations are identical, except for the computation of the predicted measurement.
 
-## Code Style
+## Results
 
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
+On the Udacity data, I get a RMSE of (0.097, 0.085, 0.45, 0.44), below the demanded target. Here is a plot of the results:
 
-## Generating Additional Data
+![Results](/images/result.png)
 
-This is optional!
+On this image, it's difficult to see the difference between the ground thruth and the estimated value, as they overlap. Here is a zoom on the start of the sequence, where we see that the initial value is exactly as the first measurement (expected, as we set it to this value), and then goes closer to the ground thruth, as more measurements comes in:
 
-If you'd like to generate your own radar and lidar data, see the
-[utilities repo](https://github.com/udacity/CarND-Mercedes-SF-Utilities) for
-Matlab scripts that can generate additional data.
+![Zoom lidar](/images/zoom_in_lidar.png)
 
-## Project Instructions and Rubric
+I've also used the same data without the first measurement, to see what happens when the first measurement is a radar measurement.
 
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
+![Zoom lidar](/images/zoom_in_radar.png)
 
-More information is only accessible by people who are already enrolled in Term 2
-of CarND. If you are enrolled, see [the project resources page](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/0949fca6-b379-42af-a919-ee50aa304e6a/lessons/f758c44c-5e40-4e01-93b5-1a82aa4e044f/concepts/382ebfd6-1d55-4487-84a5-b6a5a4ba1e47)
-for instructions and the project rubric.
-
-## Hints!
-
-* You don't have to follow this directory structure, but if you do, your work
-  will span all of the .cpp files here. Keep an eye out for TODOs.
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to we ensure
-that students don't feel pressured to use one IDE or another.
-
-However! We'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Regardless of the IDE used, every submitted project must
-still be compilable with cmake and make.
+You should also be able to find thesi results [here (lidar start)](https://plot.ly/create/?fid=2PetitsVerres:1) and [here (radar start)](https://plot.ly/create/?fid=2PetitsVerres:3), with interactive charts.
