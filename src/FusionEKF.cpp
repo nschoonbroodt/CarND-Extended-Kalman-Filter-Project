@@ -92,7 +92,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       // initialise vx,vy as if there was only radial velocity
       ekf_.x_ << rho*cos(phi), rho*sin(phi), rho_dot*cos(phi), rho_dot*sin(phi);
 
-	  // state covariance initialisation: small uncertainty on px,py, larger on vx,vy as we only measure radial velocity
+      // state covariance initialisation: small uncertainty on px,py, larger on vx,vy as we only measure radial velocity
       MatrixXd P = MatrixXd(4,4);
       P << 3,0,0,  0,
            0,3,0,  0,
@@ -108,7 +108,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       ekf_.x_(0) = measurement_pack.raw_measurements_(0);
       ekf_.x_(1) = measurement_pack.raw_measurements_(1);
 
-	  // state covariance initialisation: small uncertainty on px,py, but extremely large on vx,vy as lidar doesn't measure speed at all
+      // state covariance initialisation: small uncertainty on px,py, but extremely large on vx,vy as lidar doesn't measure speed at all
       MatrixXd P = MatrixXd(4,4);
       P << 1,0,0,    0,
            0,1,0,    0,
@@ -138,24 +138,29 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   
   // update F
   float dt = (measurement_pack.timestamp_ - previous_timestamp_)/1000000.;
-  previous_timestamp_ = measurement_pack.timestamp_;
   
-  ekf_.F_(0,2) = dt;
-  ekf_.F_(1,3) = dt;
-
-  // update Q
-  float dt2 = dt*dt;
-  float dt3 = dt*dt2;
-  float dt4 = dt*dt3;
-  float noise_ax = 9, noise_ay = 9;
-  ekf_.Q_ << dt4/4*noise_ax, 0,              dt3/2*noise_ax, 0,
-             0,              dt4/4*noise_ay, 0,              dt3/2*noise_ay,
-             dt3/2*noise_ax, 0,              dt2*noise_ax,   0,
-             0,              dt3/2*noise_ay, 0,              dt2*noise_ay;
+  // only do the predict state if dt is larger than 1ms
+  // always the case in the original udacity data, but could be different if lidar/radar
+  // data were not synchronized, could get data very close to each other sometimes
+  if (dt > 1e-3) {
+    previous_timestamp_ = measurement_pack.timestamp_;
   
-  // predict state
-  ekf_.Predict();
+    ekf_.F_(0,2) = dt;
+    ekf_.F_(1,3) = dt;
 
+    // update Q
+    float dt2 = dt*dt;
+    float dt3 = dt*dt2;
+    float dt4 = dt*dt3;
+    float noise_ax = 9, noise_ay = 9;
+    ekf_.Q_ << dt4/4*noise_ax, 0,              dt3/2*noise_ax, 0,
+               0,              dt4/4*noise_ay, 0,              dt3/2*noise_ay,
+               dt3/2*noise_ax, 0,              dt2*noise_ax,   0,
+               0,              dt3/2*noise_ay, 0,              dt2*noise_ay;
+  
+    // predict state
+    ekf_.Predict();
+  }
 
   /*****************************************************************************
    *  Update
@@ -169,16 +174,16 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
     // Radar updates
-	// Jacobian matrix at current state
+    // Jacobian matrix at current state
     Hj_ = tools.CalculateJacobian(ekf_.x_);
     // update H and R
-	ekf_.H_ = Hj_;
+    ekf_.H_ = Hj_;
     ekf_.R_ = R_radar_;
     // update state
     ekf_.UpdateEKF(measurement_pack.raw_measurements_);
   } else {
     // Laser updates
-	// update H and R
+    // update H and R
     ekf_.H_ = H_laser_;
     ekf_.R_ = R_laser_;
     // update state
