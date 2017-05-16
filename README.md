@@ -17,7 +17,7 @@ The second case is when we get the first data from the radar. In this case, ther
 ### Avoid prediction step if small dt
 If the time between two measurements is small (defined as less than 1ms in my code. For reference, the dt in the given data is always 50ms), I skip the prediction step and keep the previous state.
 
-If we had synchronized data from the lidar and radar (instead of offseted), this would lead to the following sequence: `predict(), update(lidar), update(radar)` instead of `predict(), update(lidar), update(radar)`. This avoid some unecessary computations, as the second predict would be with a dt -> 0, so not propagation very far.
+If we had synchronized data from the lidar and radar (instead of offseted), this would lead to the following sequence: `predict(), update(lidar), update(radar)` instead of `predict(), update(lidar), predict(dt->0), update(radar)`. This avoid some unecessary computations, as the second predict would be with a dt -> 0, so not propagation very far.
 
 ### Minor optimization
 I also used a common function in the `KalmanFilter::Update()` and `KalmanFilter::UpdateEKF`, as the equations are identical, except for the computation of the predicted measurement.
